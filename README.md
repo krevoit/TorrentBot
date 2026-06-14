@@ -8,9 +8,9 @@ Repository: [github.com/krevoit/TorrentBot](https://github.com/krevoit/TorrentBo
 
 - `/downloading` shows active torrents grouped by Radarr, Sonarr, and other categories.
 - `/all` shows every torrent currently known to qBittorrent.
-- Optional live progress updates for `/downloading`.
+- Live progress updates for `/downloading` and `/all`.
 - Approved users can subscribe to category/tag completion notifications.
-- Commands are DM-only and restricted to approved Discord users.
+- Status commands work in servers or DMs.
 - Supports qBittorrent username/password auth and qBittorrent Web API key auth.
 - Runs locally or in Docker.
 
@@ -53,7 +53,7 @@ APPROVED_USER_IDS=123456789012345678,234567890123456789
 ```
 
 `QBT_PORT` is optional if the port is already included in `QBT_HOST`.
-`APPROVED_USER_IDS` is a comma-separated list of Discord user IDs allowed to use the bot.
+`APPROVED_USER_IDS` is a comma-separated list of Discord user IDs allowed to create, remove, and view subscriptions.
 
 Optional tuning:
 
@@ -134,12 +134,12 @@ python main.py
 
 ## Commands
 
-Commands are run in DMs with the bot. Server/channel commands are rejected.
+Status commands can be run in servers or DMs. Subscription commands can be run in either place, but only by approved users.
 
-- `/downloading` - shows currently downloading torrents.
-- `/downloading category:radarr live:true` - edits the same message with fresh progress.
+- `/downloading` - shows currently downloading torrents and updates live by default.
+- `/downloading category:radarr live:false` - sends a static filtered status message.
 - `/downloading category:tv-sonarr tag:priority` - filters active downloads by category and tag.
-- `/all` - shows all torrents in qBittorrent.
+- `/all` - shows all torrents in qBittorrent and updates live by default.
 - `/subscribe category:radarr` - DMs you current matching progress and pings when matching downloads finish.
 - `/subscribe category:games user:@brother` - sends progress and completion DMs to another user.
 - `/subscribe category:tv-sonarr tag:priority` - subscribes to a narrower category/tag filter.
@@ -147,7 +147,7 @@ Commands are run in DMs with the bot. Server/channel commands are rejected.
 - `/subscriptions` - shows your active subscriptions.
 - `/subscriptions user:@brother` - shows another user's active subscriptions.
 
-All commands are only available to users listed in `APPROVED_USER_IDS`.
+Creating, removing, and viewing subscriptions is only available to users listed in `APPROVED_USER_IDS`.
 
 ## Acknowledgments
 

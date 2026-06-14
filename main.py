@@ -188,27 +188,15 @@ subscriptions = load_subscriptions()
 
 
 @bot.check
-async def approved_dm_context(ctx):
-    if ctx.guild is not None:
-        await ctx.send('DM me to use Torrent Bot commands.', ephemeral=True)
-        return False
-    if not is_approved(ctx.author.id):
-        await ctx.send('You are not approved to use Torrent Bot commands.', ephemeral=True)
-        return False
+async def command_context_allowed(ctx):
     return True
 
 
-async def approved_dm_interaction(interaction):
-    if interaction.guild is not None:
-        await interaction.response.send_message('DM me to use Torrent Bot commands.', ephemeral=True)
-        return False
-    if not is_approved(interaction.user.id):
-        await interaction.response.send_message('You are not approved to use Torrent Bot commands.', ephemeral=True)
-        return False
+async def interaction_context_allowed(interaction):
     return True
 
 
-bot.tree.interaction_check = approved_dm_interaction
+bot.tree.interaction_check = interaction_context_allowed
 
 # qBIT setup
 conn_info = dict(host=QBT_HOST)
@@ -233,16 +221,21 @@ for k, v in qbt_client.app.build_info.items():
     print(f"{k}: {v}")
 
 
-async def send_torrent_status(ctx, mode, category=None, tag=None, live=False):
-    embed = build_torrent_embed(mode, category, tag)
-    message = await ctx.send(embed=embed, ephemeral=not live)
-
-    if not live:
-        return
-
+async def track_live_updates(message, mode, category=None, tag=None):
     for _ in range(LIVE_UPDATE_COUNT):
         await asyncio.sleep(LIVE_UPDATE_INTERVAL_SECONDS)
-        await message.edit(embed=build_torrent_embed(mode, category, tag))
+        try:
+            await message.edit(embed=build_torrent_embed(mode, category, tag))
+        except (discord.NotFound, discord.Forbidden):
+            return
+
+
+async def send_torrent_status(ctx, mode, category=None, tag=None, live=True):
+    embed = build_torrent_embed(mode, category, tag)
+    message = await ctx.send(embed=embed, ephemeral=False)
+
+    if live:
+        asyncio.create_task(track_live_updates(message, mode, category, tag))
 
 
 @bot.hybrid_command()
@@ -250,7 +243,7 @@ async def downloading(
     ctx: commands.Context,
     category: Optional[str] = None,
     tag: Optional[str] = None,
-    live: bool = False,
+    live: bool = True,
 ):
     await send_torrent_status(ctx, 'downloading', category, tag, live)
 
@@ -260,8 +253,9 @@ async def all_torrents(
     ctx: commands.Context,
     category: Optional[str] = None,
     tag: Optional[str] = None,
+    live: bool = True,
 ):
-    await send_torrent_status(ctx, 'all', category, tag)
+    await send_torrent_status(ctx, 'all', category, tag, live)
 
 
 @bot.hybrid_command()
