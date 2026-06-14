@@ -8,7 +8,8 @@ Repository: [github.com/krevoit/TorrentBot](https://github.com/krevoit/TorrentBo
 
 - `/downloading` shows active torrents grouped by Radarr, Sonarr, and other categories.
 - `/all` shows every torrent currently known to qBittorrent.
-- Live progress updates for `/downloading` and `/all`, with last-checked timestamps.
+- Live progress updates for `/downloading` and `/all`.
+- Only the latest live status card per user/server keeps updating.
 - Status embeds include size, speed, seeds, peers, category, and tags.
 - Approved users can subscribe to category/tag completion notifications.
 - Status commands work in servers or DMs.

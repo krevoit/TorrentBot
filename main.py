@@ -157,7 +157,7 @@ def matching_torrents(mode, category=None, tag=None):
     return [torrent for torrent in torrent_source if torrent_matches(torrent, category, tag)]
 
 
-def build_torrent_embed(mode, category=None, tag=None, last_checked_seconds=0):
+def build_torrent_embed(mode, category=None, tag=None):
     torrents = matching_torrents(mode, category, tag)
     title = 'Active Downloads' if mode == 'downloading' else 'All Torrents'
     filters = []
@@ -172,12 +172,7 @@ def build_torrent_embed(mode, category=None, tag=None, last_checked_seconds=0):
         description=description,
         color=EMBED_COLORS[mode] if torrents else EMBED_COLORS['empty'],
     )
-    embed.set_footer(
-        text=(
-            f"{len(torrents)} torrent{'s' if len(torrents) != 1 else ''} matched"
-            f" • Last checked {last_checked_seconds} seconds ago"
-        )
-    )
+    embed.set_footer(text=f"{len(torrents)} torrent{'s' if len(torrents) != 1 else ''} matched")
 
     if not torrents:
         embed.add_field(name='Nothing to show', value='No matching torrents right now.', inline=False)
@@ -242,6 +237,7 @@ intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
 subscriptions = load_subscriptions()
+active_live_messages = {}
 
 
 @bot.check
@@ -278,29 +274,50 @@ for k, v in qbt_client.app.build_info.items():
     print(f"{k}: {v}")
 
 
-async def track_live_updates(message, mode, category=None, tag=None):
-    for update_number in range(1, LIVE_UPDATE_COUNT + 1):
-        await asyncio.sleep(LIVE_UPDATE_INTERVAL_SECONDS)
-        last_checked_seconds = update_number * LIVE_UPDATE_INTERVAL_SECONDS
-        try:
-            await message.edit(
-                embed=build_torrent_embed(
-                    mode,
-                    category,
-                    tag,
-                    last_checked_seconds=last_checked_seconds,
-                )
-            )
-        except (discord.NotFound, discord.Forbidden):
-            return
+def live_message_key(ctx):
+    if ctx.guild:
+        return ('guild', ctx.guild.id, ctx.author.id)
+    return ('dm', ctx.author.id)
+
+
+async def stop_previous_live_message(key):
+    previous = active_live_messages.pop(key, None)
+    if not previous:
+        return
+
+    previous['task'].cancel()
+    try:
+        await previous['message'].delete()
+    except (discord.NotFound, discord.Forbidden):
+        return
+
+
+async def track_live_updates(key, message, mode, category=None, tag=None):
+    try:
+        for _ in range(LIVE_UPDATE_COUNT):
+            await asyncio.sleep(LIVE_UPDATE_INTERVAL_SECONDS)
+            await message.edit(embed=build_torrent_embed(mode, category, tag))
+    except asyncio.CancelledError:
+        return
+    except (discord.NotFound, discord.Forbidden):
+        return
+    finally:
+        current = active_live_messages.get(key)
+        if current and current['message'].id == message.id:
+            active_live_messages.pop(key, None)
 
 
 async def send_torrent_status(ctx, mode, category=None, tag=None, live=True):
-    embed = build_torrent_embed(mode, category, tag, last_checked_seconds=0)
+    key = live_message_key(ctx)
+    if live:
+        await stop_previous_live_message(key)
+
+    embed = build_torrent_embed(mode, category, tag)
     message = await ctx.send(embed=embed, ephemeral=False)
 
     if live:
-        asyncio.create_task(track_live_updates(message, mode, category, tag))
+        task = asyncio.create_task(track_live_updates(key, message, mode, category, tag))
+        active_live_messages[key] = {'message': message, 'task': task}
 
 
 @bot.hybrid_command()
