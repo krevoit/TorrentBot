@@ -1,11 +1,11 @@
 # Dockerfile, Image, Container
-FROM python:3.12
+FROM python:3.14-slim
 
-ADD / .
+WORKDIR /app
 
-RUN pip install discord
-RUN pip install python-dotenv
-RUN pip install qbittorrent-api
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+COPY . .
 
 CMD ["python", "./main.py"]

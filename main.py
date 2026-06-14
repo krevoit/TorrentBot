@@ -8,11 +8,28 @@ from functions import *
 
 
 load_dotenv()
+
 TOKEN = os.getenv('DISCORD_TOKEN')
-USERNAME = os.getenv('username')
-PASSWORD = os.getenv('password')
-HOST = os.getenv('host')
-PORT = os.getenv('port')
+QBT_HOST = os.getenv('QBT_HOST')
+QBT_PORT = os.getenv('QBT_PORT')
+QBT_USERNAME = os.getenv('QBT_USERNAME')
+QBT_PASSWORD = os.getenv('QBT_PASSWORD')
+QBT_API_KEY = os.getenv('QBT_API_KEY')
+
+
+def validate_config():
+    missing = []
+    if not TOKEN:
+        missing.append('DISCORD_TOKEN')
+    if not QBT_HOST:
+        missing.append('QBT_HOST')
+    if not QBT_API_KEY:
+        if not QBT_USERNAME:
+            missing.append('QBT_USERNAME')
+        if not QBT_PASSWORD:
+            missing.append('QBT_PASSWORD')
+    if missing:
+        raise SystemExit('Missing required environment variables: ' + ', '.join(missing))
 
 intents = Intents.all()
 bot = commands.Bot(command_prefix='/', intents=intents)
@@ -100,19 +117,24 @@ async def on_ready():
     print(f'{bot.user} is now running! \nMade By @SavnoorSamra')
     await bot.tree.sync()
 
+validate_config()
+
 # qBIT setup
-conn_info = dict(
-    host=HOST,
-    port=PORT,
-    username=USERNAME,
-    password=PASSWORD
-)
+conn_info = dict(host=QBT_HOST)
+if QBT_PORT:
+    conn_info['port'] = QBT_PORT
+if QBT_API_KEY:
+    conn_info['api_key'] = QBT_API_KEY
+else:
+    conn_info['username'] = QBT_USERNAME
+    conn_info['password'] = QBT_PASSWORD
+
 qbt_client = qbittorrentapi.Client(**conn_info)
 
 try:
     qbt_client.auth_log_in()
 except qbittorrentapi.LoginFailed as e:
-    print(e)
+    raise SystemExit(f'qBittorrent login failed: {e}') from e
 
 print(f"qBittorrent: {qbt_client.app.version}")
 print(f"qBittorrent Web API: {qbt_client.app.web_api_version}")

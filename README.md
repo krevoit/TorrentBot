@@ -1,160 +1,94 @@
-<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
-<a name="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
+# Torrent Bot
 
+A small Discord bot for checking qBittorrent download status from slash commands.
 
+Repository: [github.com/krevoit/TorrentBot](https://github.com/krevoit/TorrentBot)
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
+## Features
 
+- `/downloading` shows active torrents grouped by Radarr, Sonarr, and other categories.
+- `/all` shows every torrent currently known to qBittorrent.
+- Supports qBittorrent username/password auth and qBittorrent Web API key auth.
+- Runs locally or in Docker.
 
+## Requirements
 
+- A Discord bot token.
+- qBittorrent Web UI enabled.
+- Python 3.14 or Docker.
 
-<h1 align="center">Torrent Bot</h1>
+## Discord Setup
 
+1. Go to [discord.dev](https://discord.dev) and create an application.
+2. Open the **Bot** page and copy the bot token.
+3. Enable the intents your server requires. The bot currently uses Discord slash commands.
+4. Open **OAuth2**, generate a bot invite URL, and add the bot to your server.
 
-<!-- TABLE OF CONTENTS -->
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
-  </ol>
+![Discord bot permissions](img/permissions.png)
 
+## Configuration
 
+Create a `.env` file in the project root:
 
+```env
+DISCORD_TOKEN=your_discord_bot_token
+QBT_HOST=127.0.0.1
+QBT_PORT=8080
+QBT_USERNAME=admin
+QBT_PASSWORD=your_password
+```
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
-Want to be able to view the download status of your torrents in discord? Now you can with this simple bot!
+For qBittorrent versions that support Web API keys, use `QBT_API_KEY` instead of username/password:
 
-<!-- GETTING STARTED -->
-## Getting Started
+```env
+DISCORD_TOKEN=your_discord_bot_token
+QBT_HOST=127.0.0.1
+QBT_PORT=8080
+QBT_API_KEY=your_qbittorrent_api_key
+```
 
-You may either run this bot in a docker container using the provided DOCKERFILE or run it "bare-metal" by manually installing the following prerequisites.
+`QBT_PORT` is optional if the port is already included in `QBT_HOST`.
 
-### Prerequisites
-If Using docker:
-Install docker engine https://docs.docker.com/engine/install/
+## Run With Docker
 
-If NOT using docker,
-Install the following packages:
-* python
-  ```sh
-  sudo apt install python3
-  ```
-* discord library
-  ```sh
-  pip install discord
-  ```
-* dotenv
-  ```sh
-  pip install python-dotenv
-  ```
-* qBittorrent-api
-  ```sh
-  pip install qbittorrent-api
-  ```
+Using Docker Hub:
 
-### Installation
+```sh
+docker run --env-file .env krevoit/TorrentBot:latest
+```
 
-#### Docker
-1. Clone the repo
-  ```sh
-   git clone https://github.com/SavnoorSamra/TorrentBot.git
-   ```
-2. Create a file in the root of the repo named ".env" and fill in the following information in the format shown below where
-   ```sh
-   DISCORD_TOKEN=XXXXXXXXXXXXXXXXXXXX
-   username=XXX
-   password=XXX
-   host=XXX.XXX.XXX.XXX
-   port=XXXX
-   ```
-* DISCORD_TOKEN = The token obtained in step 2
-* username = The username of your qBittorrent server
-* password = The password of your qBittorrent server
-* host = The host IP of your qBittorrent server
-* port = The port on which the webUI of your qBittorrent server runs
-3. In the folder containing the dockerfile run the following command: (Enter the directory the git repo was cloned to if you haven't already)
-   ```commandline
-   cd TorrentBot
-   sudo docker build ./ --tag 'torrentbot'
-   sudo docker run torrentbot
-   ```
-4. Your bot should now be connected and online!
+Using GitHub Container Registry:
 
-#### Bare Metal
-1. Login at [https://discord.dev](https://discord.dev)
-2. Create a new application and note down the Token in the "BOT" page found in the left sidebar
-   1. (Feel free to give your bot a cool profile picture while in here too!)
-3. Enable Presence Intent, Server Members Intent, and Message Content Intent.
-4. On the OAuth2 page, scroll down to the OAuth2 URL Generator and check the box for "bot" and check off the following boxes. Copy the generated link into a browser and add the bot to your server.![img.png](/img/permissions.png)
+```sh
+docker run --env-file .env ghcr.io/TorrentBot:latest
+```
 
-5. Clone the repo
-  ```sh
-   git clone https://github.com/SavnoorSamra/TorrentBot.git
-   ```
-   
-6. Create a file in the root of the repo named ".env" and fill in the following information in the format shown below where
-   ```sh
-   DISCORD_TOKEN=XXXXXXXXXXXXXXXXXXXX
-   username=XXX
-   password=XXX
-   host=XXX.XXX.XXX.XXX
-   port=XXXX
-   ```
-* DISCORD_TOKEN = The token obtained in step 2
-* username = The username of your qBittorrent server
-* password = The password of your qBittorrent server
-* host = The host IP of your qBittorrent server
-* port = The port on which the webUI of your qBittorrent server runs
+To build locally from source:
 
-7. Run main.py
-   ```sh
-   python3 main.py
-   ```
-8. Your bot should now be connected and online!
+```sh
+git clone https://github.com/krevoit/TorrentBot.git
+cd TorrentBot
+docker build -t torrentbot .
+docker run --env-file .env torrentbot
+```
 
-<!-- USAGE EXAMPLES -->
-## Usage
+The Docker image uses `python:3.14-slim`.
 
-There are two commands to view the status of your downloads
-* /downloading
-  * Shows all currently downloading torrents
-* /all
-  * Shows all torrents currently in qBittorrent
+## Run Locally
 
+```sh
+python3.14 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
 
-<!-- CONTACT -->
-## Contact
+## Commands
 
-Savnoor Samra
-* Discord: @chairbell
+- `/downloading` - shows currently downloading torrents.
+- `/all` - shows all torrents in qBittorrent.
 
-<!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-* [rmartin16](https://github.com/rmartin16/qbittorrent-api) For the qBittorrent api
-* [Opaque02](https://github.com/Opaque02/QBitHelper/tree/main) For their similarly functioning bot
+- [qbittorrent-api](https://github.com/rmartin16/qbittorrent-api)
+- [QBitHelper](https://github.com/Opaque02/QBitHelper/tree/main)
