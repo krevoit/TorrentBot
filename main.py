@@ -280,6 +280,10 @@ def live_message_key(ctx):
     return ('dm', ctx.author.id)
 
 
+def subscription_live_key(user_id, subscription_filter):
+    return ('subscription', int(user_id), subscription_filter)
+
+
 async def stop_previous_live_message(key):
     previous = active_live_messages.pop(key, None)
     if not previous:
@@ -318,6 +322,14 @@ async def send_torrent_status(ctx, mode, category=None, tag=None, live=True):
     if live:
         task = asyncio.create_task(track_live_updates(key, message, mode, category, tag))
         active_live_messages[key] = {'message': message, 'task': task}
+
+
+async def send_subscription_progress(target_user, subscription_filter, category=None, tag=None):
+    key = subscription_live_key(target_user.id, subscription_filter)
+    await stop_previous_live_message(key)
+    message = await target_user.send(embed=build_torrent_embed('downloading', category, tag))
+    task = asyncio.create_task(track_live_updates(key, message, 'downloading', category, tag))
+    active_live_messages[key] = {'message': message, 'task': task}
 
 
 @bot.hybrid_command()
@@ -374,7 +386,7 @@ async def subscribe(
     )
 
     try:
-        await target_user.send(embed=build_torrent_embed('downloading', category, tag))
+        await send_subscription_progress(target_user, key, category, tag)
     except discord.Forbidden:
         await ctx.send(
             f"I could not DM {target_user.mention}. They may need to enable DMs from this server.",
@@ -399,6 +411,7 @@ async def unsubscribe(
     if subscriptions.get(user_id, {}).pop(key, None) is None:
         await ctx.send('No matching subscription found.', ephemeral=True)
         return
+    await stop_previous_live_message(subscription_live_key(user_id, key))
     if not subscriptions[user_id]:
         subscriptions.pop(user_id)
     save_subscriptions()
@@ -444,8 +457,9 @@ async def check_subscriptions():
 
     for user_id, user_subscriptions in list(subscriptions.items()):
         user = bot.get_user(int(user_id)) or await bot.fetch_user(int(user_id))
-        for subscription in user_subscriptions.values():
+        for subscription_filter, subscription in user_subscriptions.items():
             pending = set(subscription.get('pending_hashes', []))
+            found_new_match = False
             for torrent in torrents:
                 if not subscription_matches(subscription, torrent):
                     continue
@@ -454,6 +468,7 @@ async def check_subscriptions():
                 if not is_complete(torrent):
                     if torrent_hash not in pending:
                         pending.add(torrent_hash)
+                        found_new_match = True
                         changed = True
                     continue
 
@@ -474,6 +489,16 @@ async def check_subscriptions():
                 except discord.Forbidden:
                     print(f'Could not DM completion notice to user {user_id}')
             subscription['pending_hashes'] = sorted(pending)
+            if found_new_match:
+                try:
+                    await send_subscription_progress(
+                        user,
+                        subscription_filter,
+                        subscription.get('category'),
+                        subscription.get('tag'),
+                    )
+                except discord.Forbidden:
+                    print(f'Could not DM updated progress card to user {user_id}')
 
     if changed:
         save_subscriptions()

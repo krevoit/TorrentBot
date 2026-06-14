@@ -142,14 +142,15 @@ Status commands can be run in servers or DMs. Subscription commands can be run i
 - `/downloading category:radarr live:false` - sends a static filtered status message.
 - `/downloading category:tv-sonarr tag:priority` - filters active downloads by category and tag.
 - `/all` - shows all torrents in qBittorrent and updates live by default.
-- `/subscribe category:radarr` - DMs you current matching progress and pings when matching downloads finish.
-- `/subscribe category:games user:@brother` - sends progress and completion DMs to another user.
+- `/subscribe category:radarr` - DMs you live matching progress and pings when matching downloads finish.
+- `/subscribe category:games user:@brother` - sends live progress and completion DMs to another user.
 - `/subscribe category:tv-sonarr tag:priority` - subscribes to a narrower category/tag filter.
 - `/unsubscribe category:radarr user:@brother` - removes a matching subscription.
 - `/subscriptions` - shows your active subscriptions.
 - `/subscriptions user:@brother` - shows another user's active subscriptions.
 
 Creating, removing, and viewing subscriptions is only available to users listed in `APPROVED_USER_IDS`.
+When a new torrent appears for a subscribed category/tag, the bot replaces the old live progress DM with a fresh one.
 
 ## Acknowledgments
 
