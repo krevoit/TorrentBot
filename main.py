@@ -65,6 +65,13 @@ def parse_torrent_tags(torrent):
     return {tag.strip().lower() for tag in tags.split(',') if tag.strip()}
 
 
+def display_torrent_tags(torrent):
+    tags = getattr(torrent, 'tags', '') or ''
+    if isinstance(tags, (list, tuple, set)):
+        return ', '.join(str(tag).strip() for tag in tags if str(tag).strip()) or 'None'
+    return tags or 'None'
+
+
 def torrent_matches(torrent, category=None, tag=None):
     if category and (torrent.category or '').lower() != category.lower():
         return False
@@ -84,14 +91,64 @@ def progress_bar(progress, width=14):
     return '█' * completed + '░' * (width - completed)
 
 
+def format_bytes(value):
+    if value is None:
+        return 'N/A'
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return 'N/A'
+    units = ('B', 'KB', 'MB', 'GB', 'TB', 'PB')
+    for unit in units:
+        if abs(value) < 1024 or unit == units[-1]:
+            return f"{value:.1f} {unit}" if unit != 'B' else f"{int(value)} B"
+        value /= 1024
+    return 'N/A'
+
+
+def format_speed(value):
+    formatted = format_bytes(value)
+    return 'N/A' if formatted == 'N/A' else f'{formatted}/s'
+
+
+def get_first_attr(obj, *names):
+    for name in names:
+        value = getattr(obj, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def truncate(value, limit):
+    value = str(value)
+    return value if len(value) <= limit else value[:limit - 1] + '…'
+
+
+def torrent_field_name(torrent):
+    percent = round(torrent.progress * 100, 1)
+    category = category_name(torrent.category)
+    return truncate(f"{category} • {percent}% • {torrent.name}", 256)
+
+
 def torrent_line(torrent):
     percent = round(torrent.progress * 100, 1)
     state = getattr(torrent, 'state', 'unknown')
     eta = convertTime(torrent.eta)
+    size = format_bytes(get_first_attr(torrent, 'size', 'total_size'))
+    downloaded = format_bytes(get_first_attr(torrent, 'downloaded', 'completed'))
+    download_speed = format_speed(get_first_attr(torrent, 'dlspeed', 'download_speed'))
+    upload_speed = format_speed(get_first_attr(torrent, 'upspeed', 'upload_speed'))
+    seeds = get_first_attr(torrent, 'num_seeds', 'seeds')
+    peers = get_first_attr(torrent, 'num_leechs', 'num_leechers', 'peers')
+    category = torrent.category or 'None'
+    tags = truncate(display_torrent_tags(torrent), 120)
     return (
-        f"**{torrent.name}**\n"
         f"`{progress_bar(torrent.progress)}` {percent}%\n"
-        f"{eta} • `{state}`"
+        f"**Size:** {downloaded} / {size}\n"
+        f"**Speed:** ↓ {download_speed} • ↑ {upload_speed}\n"
+        f"**Seeds/Peers:** {seeds if seeds is not None else 'N/A'} / {peers if peers is not None else 'N/A'}\n"
+        f"**Category:** `{category}` • **Tags:** `{tags}`\n"
+        f"**State:** `{state}` • {eta}"
     )
 
 
@@ -100,7 +157,7 @@ def matching_torrents(mode, category=None, tag=None):
     return [torrent for torrent in torrent_source if torrent_matches(torrent, category, tag)]
 
 
-def build_torrent_embed(mode, category=None, tag=None):
+def build_torrent_embed(mode, category=None, tag=None, last_checked_seconds=0):
     torrents = matching_torrents(mode, category, tag)
     title = 'Active Downloads' if mode == 'downloading' else 'All Torrents'
     filters = []
@@ -115,24 +172,24 @@ def build_torrent_embed(mode, category=None, tag=None):
         description=description,
         color=EMBED_COLORS[mode] if torrents else EMBED_COLORS['empty'],
     )
-    embed.set_footer(text=f"{len(torrents)} torrent{'s' if len(torrents) != 1 else ''} matched")
+    embed.set_footer(
+        text=(
+            f"{len(torrents)} torrent{'s' if len(torrents) != 1 else ''} matched"
+            f" • Last checked {last_checked_seconds} seconds ago"
+        )
+    )
 
     if not torrents:
         embed.add_field(name='Nothing to show', value='No matching torrents right now.', inline=False)
         return embed
 
-    grouped = {}
-    for torrent in torrents[:25]:
-        grouped.setdefault(category_name(torrent.category), []).append(torrent)
+    for torrent in torrents[:10]:
+        embed.add_field(name=torrent_field_name(torrent), value=torrent_line(torrent)[:1024], inline=False)
 
-    for label, group in grouped.items():
-        value = '\n\n'.join(torrent_line(torrent) for torrent in group)
-        embed.add_field(name=label, value=value[:1024], inline=False)
-
-    if len(torrents) > 25:
+    if len(torrents) > 10:
         embed.add_field(
             name='More torrents',
-            value=f"{len(torrents) - 25} additional torrents were hidden to keep the embed readable.",
+            value=f"{len(torrents) - 10} additional torrents were hidden to keep the embed readable.",
             inline=False,
         )
 
@@ -222,16 +279,24 @@ for k, v in qbt_client.app.build_info.items():
 
 
 async def track_live_updates(message, mode, category=None, tag=None):
-    for _ in range(LIVE_UPDATE_COUNT):
+    for update_number in range(1, LIVE_UPDATE_COUNT + 1):
         await asyncio.sleep(LIVE_UPDATE_INTERVAL_SECONDS)
+        last_checked_seconds = update_number * LIVE_UPDATE_INTERVAL_SECONDS
         try:
-            await message.edit(embed=build_torrent_embed(mode, category, tag))
+            await message.edit(
+                embed=build_torrent_embed(
+                    mode,
+                    category,
+                    tag,
+                    last_checked_seconds=last_checked_seconds,
+                )
+            )
         except (discord.NotFound, discord.Forbidden):
             return
 
 
 async def send_torrent_status(ctx, mode, category=None, tag=None, live=True):
-    embed = build_torrent_embed(mode, category, tag)
+    embed = build_torrent_embed(mode, category, tag, last_checked_seconds=0)
     message = await ctx.send(embed=embed, ephemeral=False)
 
     if live:
