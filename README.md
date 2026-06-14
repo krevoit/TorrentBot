@@ -54,13 +54,13 @@ QBT_API_KEY=your_qbittorrent_api_key
 Using Docker Hub:
 
 ```sh
-docker run --env-file .env krevoit/TorrentBot:latest
+docker run --env-file .env krevoit/torrentbot:latest
 ```
 
 Using GitHub Container Registry:
 
 ```sh
-docker run --env-file .env ghcr.io/TorrentBot:latest
+docker run --env-file .env ghcr.io/krevoit/torrentbot:latest
 ```
 
 To build locally from source:
@@ -73,6 +73,18 @@ docker run --env-file .env torrentbot
 ```
 
 The Docker image uses `python:3.14-slim`.
+
+## Publishing
+
+Docker images are published by GitHub Actions on pushes to `main`:
+
+- Docker Hub: `krevoit/torrentbot:latest`
+- GitHub Container Registry: `ghcr.io/krevoit/torrentbot:latest`
+
+Docker Hub publishing requires these repository secrets:
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
 
 ## Run Locally
 
