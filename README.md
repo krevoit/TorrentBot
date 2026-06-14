@@ -63,6 +63,24 @@ Using GitHub Container Registry:
 docker run --env-file .env ghcr.io/krevoit/torrentbot:latest
 ```
 
+Using Docker Compose:
+
+```yaml
+services:
+  torrentbot:
+    image: krevoit/torrentbot:latest
+    container_name: torrentbot
+    env_file:
+      - .env
+    restart: unless-stopped
+```
+
+Start it with:
+
+```sh
+docker compose up -d
+```
+
 To build locally from source:
 
 ```sh
